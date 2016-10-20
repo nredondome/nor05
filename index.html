@@ -1,0 +1,255 @@
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html;charset=UTF-8">
+	<title>ETSII BÉJAR Flujo de cargas</title>	
+	<style>
+		p, pre {
+			font: 12px arial, sans-serif;
+			text-align: left;
+			margin-top: 1px;
+			margin-bottom: 2px;
+		}
+	  	table, th, td {
+	  		table-layout: fixed;
+	  		width: 90px;
+			empty-cells: hide;
+			border-collapse: collapse;
+			padding: 0px;
+			font: 12px arial, sans-serif;
+			text-align: center;
+			vertical-align: text-bottom;
+		}
+		td {
+			height: 18px;
+		}
+		tr:hover {background-color: #f2f2f2}
+		tr:nth-child(odd) {background-color: #f6f6f6}
+		input {
+			font: 12px arial, sans-serif;
+			text-align: center;
+			width: 86px;
+			height: 17px;
+		}
+		button {
+			background-color: #fdf6f6;
+			height: 19px;
+		}
+	</style>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+	<script src="https://cdn.opencpu.org/opencpu-0.4.js"></script>
+	<script>
+		var L = 2;
+		var node = 2;
+		var j ="";
+		var k ="";
+		$(document).ready(function() {
+			// Añadir nudo
+			$("#addNode").on("click", function() {
+				$("#nodesTable").append('<tr><td><input class="NODE" type="text" id="'+node+'NODE" value="'+node+'"/></td><td><input class="LOAD" type="text" id="'+node+'LOAD" value="'+(node+2)+'+'+node+'i"/></td><td><input class="GENR" type="text" id="'+node+'GENR" value="0"/></td><td class="UNOD" id="'+node+'UNOD"></td><td class="INOD" id="'+node+'INOD"></td><td class="PNOD" id="'+node+'PNOD"></td><td><button class="clearNode" type="button">X</button></td></tr>');
+				node += 1;
+			});
+			
+			// Borrar nudo
+			$("#nodesTable").on("click",".clearNode", function() {
+				var borra = $(this).closest("tr");
+				var nod = borra.find(".NODE").val();
+				var lod = borra.find(".LOAD").val();
+				var resp = confirm("Se va a eliminar este nudo: \nNudo "+nod+": "+lod+" kVA");
+				if (resp == true) borra.remove();
+			});
+			
+			// Añadir línea
+			$("#addLine").on("click", function() {
+				var LF = L + 1;
+				$("#linesTable").append('<tr><td><input class="INI" type="text" value="'+L+'"/></td><td><input class="FIN" type="text" value="'+LF+'" /></td><td><input  class="KM" type="text" value="50" /></td><td><button class="clearLine" type="button">X</button></td></tr>');
+				L = L + 1;
+			});
+			
+			// Borrar línea
+			$("#linesTable").on("click",".clearLine", function() {
+				var borra = $(this).closest("tr");
+				var ini = borra.find(".INI").val();
+				var fin = borra.find(".FIN").val();
+				var km =  borra.find(".KM").val();
+				var resp = confirm("Se van a borrar estos datos: \nLínea "+ini+" - "+fin+", de longitud "+km+" km");
+				if (resp == true) borra.remove();
+			});
+			
+			// Ver datos como los que se pasan a la función en R	
+			$("#seeMatrix").on("click", function() {  
+				var Un  = $("#Un").val();
+				var NODEvect =[];
+				var LOADvect =[];
+				var GENvect  =[];
+				var INIvect  =[];
+				var FINvect  =[];
+				var KMvect   =[];
+				var iter = 200;
+				var f 	= $("#f").val();
+				var	zs	= $("#zs").val();
+				var	zp	= $("#zp").val();
+				var U1  = $("#1UNOD").val();
+				$("#nodesTable>tbody>tr").each(function(i, tr) {
+					NODEvect[i-1] = $("input.NODE", tr).val();
+					LOADvect[i-1] = $("input.LOAD", tr).val();	
+					GENvect[i-1]  = $("input.GENR", tr).val();	
+				});
+				var n   = NODEvect.length;
+				$("#linesTable>tbody>tr").each(function(i, tr) {
+					INIvect[i-1] = $("input.INI", tr).val();
+					FINvect[i-1] = $("input.FIN", tr).val();
+					KMvect[i-1]  = $("input.KM", tr).val();
+				});
+				alert("Datos:\n n: "+n+"\n Un: "+Un+"\n Nodes: "+NODEvect+"\n L: "+LOADvect+"\n G: "+GENvect+"\n f: "+f+"\n zs: "+zs+"\n zp: "+zp+"\n ini: "+INIvect+"\n fin: "+FINvect+"\n km: "+KMvect+"\n U1: "+U1+"\n iter: "+iter);
+			});
+			
+			// Llamada a R para efectuar el cálculo y reproducir los resultados
+			$("#callR").on("click", function() {
+				$("#callR").attr("disabled", "disabled");
+				var Un  = $("#Un").val();  // Obtengo variables
+				var NODEvect =[];
+				var LOADvect =[];
+				var GENvect  =[];
+				var INIvect  =[];
+				var FINvect  =[];
+				var KMvect   =[];
+				var iter = 200;
+				var f 	= $("#f").val();
+				var	zs	= $("#zs").val();
+				var	zp	= $("#zp").val();
+				var U1  = $("#1UNOD").val();
+				$("#nodesTable>tbody>tr").each(function(i, tr) {
+					NODEvect[i-1] = $("input.NODE", tr).val();
+					LOADvect[i-1] = $("input.LOAD", tr).val();	
+					GENvect[i-1]  = $("input.GENR", tr).val();	
+				});
+				var n   = NODEvect.length;
+				$("#linesTable>tbody>tr").each(function(i, tr) {
+					INIvect[i-1] = $("input.INI", tr).val();
+					FINvect[i-1] = $("input.FIN", tr).val();
+					KMvect[i-1]  = $("input.KM", tr).val();
+				});
+				var req = ocpu.rpc("calcula", { // Llamo a mi función en R
+					Un 	: Un,
+					L 	: LOADvect,
+					G 	: GENvect,
+					f 	: f,
+					zs	: zs,
+					zp	: zp,
+					ini : INIvect,
+					fin : FINvect,
+					km  : KMvect,
+					U1  : U1
+				}, function(res){  // Obtengo la respuesta compuesta y la meto en el objeto 'res'
+					$("#nodesTable>tbody>tr").each(function(i, tr) {  // Relleno la tabla con resultados
+						$(".UNOD", tr).text(res[0][i-1]); // 'res[0]' es el vector de las tensiones de nudo
+						$(".INOD", tr).text(res[1][i-1]); // Intensidades de fuentes de nudo
+						$(".PNOD", tr).text(res[2][i-1]); // Potencias de fuentes de nudo
+					});
+					$("#pLine").empty();
+					$("#pLine").append("<p>Potencias entregadas a las líneas</p><table id='pLineTable'><tbody>");
+					$("#iLine").empty();
+					$("#iLine").append("<p>Intensidades de las líneas</p><table id='iLineTable'><tbody>");
+					for (j = -1; j < n; j++) {   // Lleno a la vez las dos tablas de datos
+						var html1 = '<tr>';
+						var html2 = '<tr>';
+						for (k = -1; k < n; k++) {
+							if (j == -1) {
+								if (k == -1) { html1 += '<th></th>'; }
+								else { html1 += '<th>[ '+(k+1)+' ]</th>'; }
+								html2 = html1;
+							}
+							else {
+								if (k == -1) { 	
+									html1 += '<th>[ '+(j+1)+' ]</th>';
+									html2 = html1;
+								}
+								else if (j == k) {
+									html1 += '<td>- - - -</td>';
+									html2 += '<td>- - - -</td>';
+								}
+								else {
+									html1 += '<td>'+res[3][j][k]+'</td>';  // Potencias por las líneas
+									html2 += '<td>'+res[4][j][k]+'</td>';  // Intensidades por las líneas
+								}
+							}
+						}
+						html1 += '</tr>';
+						html2 += '</tr>';
+						$("#pLineTable").append(html1);
+						$("#iLineTable").append(html2);
+					}
+					$("#pLineTable").append("</tbody></table>");		
+					$("#iLineTable").append("</tbody></table>");
+					$("#pPerd").empty();
+					$("#pPerd").text("Pérdidas en la red   (kW): "+ res[5]);
+					$("#Ef").empty(); 
+					$("#Ef").text("Rendimiento de la red (%): "+ res[6]);
+					$("#iter").empty(); 
+					$("#iter").text("Iteraciones efectuadas: "+ res[7]);
+					});	  
+				//if R returns an error, alert the error message
+				req.fail(function(){
+					alert("Si el servidor R está activo a continuación sigue un error:\n\n" + req.responseText);
+					});
+				//after request complete, re-enable the button
+				req.always(function(){
+					$("#callR").removeAttr("disabled");
+					});
+			});
+		});
+	</script>	
+</head>
+
+<body>
+	<form>
+		<h3>Resolución de problemas de flujos de carga</h3>
+		<p>© Nor 2016</p>
+		<table>
+			<tr>
+				<td>Tensión nominal de la red<input type="text" id="Un" value="45000" /><br>V</td>
+				<td>Impedancia serie<input type="text" id="zs" value="10+0i" /><br>Ω/km</td>
+				<td>Semi imp. paralelo<input type="text" id="zp" value="0+550000i" /><br>Ω/km</td>
+				<td>Porcentaje de carga: <input type="text" id="f" value="100" /><br>%</td>
+				<td><button type="button" id="seeMatrix">Ver datos</button><p></p>
+				    <button type="button" id="callR">R resuelve!</button><p></p></td>
+			</tr>
+		</table>
+		<p>Elementos de la red</p>
+		<table id="linesTable">
+			<tr><th>INI</th><th>FIN</th><th>km</th>
+			<th><button type="button" id="addLine">Añadir línea</button></th></tr>
+			<tr>
+				<td><input class="INI" type="text" id="0INI" value="1" /></td>
+				<td><input class="FIN" type="text" id="0FIN" value="2" /></td>
+				<td><input class="KM"  type="text" id="0KM" value="10" /></td>
+				<td><button class="clearLine" type="button">X</button></td>
+			</tr>
+		</table>
+		<p></p>
+		<table id="nodesTable">
+			<tr><th>Nudo</th><th>Load<br>(MVA)</th><th>Genr<br>(MVA)</th>
+			<th>U<br>(V)</th><th>I<br>(A)</th><th>S<br>(kVA)</th>
+			<th><button type="button" id="addNode">Añadir nudo</button></th></tr>
+			<tr>
+				<td><input class="NODE" type="text" id="1NODE" value="1" /></td>
+				<td><input class="LOAD" type="text" id="1LOAD" value="0" /></td>
+				<td><input class="GENR" type="text" id="1GENR" value="0" /></td>
+				<td><input class="UNOD" type="text" id="1UNOD" value="45000+0i" /></td>
+				<td class="INOD" id="1INOD"></td>
+				<td class="PNOD" id="1PNOD"></td>
+				<td><button class="clearNode" type="button">X</button></td>
+			</tr>
+		</table>
+		<pre id="pPerd"><code></code></pre>
+		<pre id="Ef"><code></code></pre>
+	</form>
+	<p><code id="pLine"></code></p>
+	<p><code id="iLine"></code></p>
+	<p><code id="iter"></code></p>
+</body>
+</html>
+
+
+<!-- http://codepedia.info/editor-example/jquery-click-event-for-dynamic-added-element/
+-->
